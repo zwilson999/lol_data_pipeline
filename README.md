@@ -18,7 +18,7 @@ NOTE: You can also use an optional argument when calling the main ```ingest.py``
 4). Main functionality is ```ingest.py```. An example call to run the ingestion is below:
 
 ```
-cd lol_data_pipeline
+cd lol_data_pipeline/src
 
 # if you have a space in your_league_summoner_name_, be sure to send the argument enclosed in double quotes.
 python ingest.py --summoner <your_league_summoner_name> --queue_type draft --db league_of_legends --collection match_data

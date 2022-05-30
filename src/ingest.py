@@ -50,7 +50,7 @@ class LeagueApi:
         query: dict = None 
         for q in self.queue_types:
             print(f"Getting all {q} Matches...")
-            for i in range(0,500,100):
+            for i in range(0, 2000, 100):
                 query: dict = {
                     'queue': utils.get_queue_id(q), # Queue type
                     'start': i, # Index start
