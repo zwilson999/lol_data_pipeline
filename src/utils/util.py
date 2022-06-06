@@ -32,3 +32,14 @@ def get_queue_id(queue_type: str) -> int:
         "aram": 450
     }
     return match_type_map[queue_type]
+
+def unix_timestamp_to_date(timestamp: int) -> str:
+    from datetime import datetime
+    """
+        args:
+            timestamp: integer timestamp in milliseconds
+        returns:
+            converted timestamp in MS to YYY-MM-DD string date format
+    """
+    converted_date: str = datetime.fromtimestamp(timestamp / 1000.0).strftime("%Y-%m-%d")
+    return converted_date

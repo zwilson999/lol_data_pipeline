@@ -2,14 +2,14 @@
 
 This is a simple data pipeline to pull League of Legends Match Data for a given summoner and ingest it into a local MongoDB collection.
 
-Code is setup to pull data into a MongoDb collection I set up called ```league_of_legends.match_data```.
+Code is setup to pull data into a MongoDb collection I set up locally called ```league_of_legends.match_data```. You can change this to fit your needs.
 
 
 ### Setup
 
 1). Request a personal API Key (that doesn't expire) from the Riot Games team [here.](https://developer.riotgames.com/)
 
-2). Create a .txt file with your API Key and store it in a directory next to ```src``` called ```api_token.txt``` 
+2). Create a .txt file with your API Key and store it in a directory next to ```src``` called ```creds/api_key.txt``` 
 
 NOTE: You can also use an optional argument when calling the main ```ingest.py``` script with flag --api_key_path to point to the file on your local machine.
 

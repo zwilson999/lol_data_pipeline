@@ -1,4 +1,6 @@
-token/api_token.txt
+creds/api_key.txt
 venv
 data
 **/__pycache__/
+
+/notebooks
