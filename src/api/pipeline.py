@@ -42,7 +42,7 @@ class SummonerMatchData:
         responses: list[Response] = self.event_loop.run_until_complete(_make_requests(self.api_key, *self.matches, rate_limit=self.rate_limit))
         return responses
 
-async def _make_requests(api_key: str, *requests: "list[Request]", rate_limit: int):
+async def _make_requests(api_key: str, *requests: "list[Request]", rate_limit: int) -> "list[Response]":
     semaphore: asyncio.Semaphore = asyncio.Semaphore(rate_limit)
     headers: dict = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko)     Chrome/86.0.4240.183 Safari/537.36",
@@ -52,15 +52,15 @@ async def _make_requests(api_key: str, *requests: "list[Request]", rate_limit: i
             "X-Riot-Token": api_key # API key
     }
     async with aiohttp.ClientSession(headers=headers) as session:
-        tasks: list = [asyncio.create_task(_iterate(semaphore, session, request)) for request in requests]
+        tasks: list[asyncio.Task] = [asyncio.create_task(_iterate(semaphore, session, request)) for request in requests]
         responses = await asyncio.gather(*tasks)
     return responses
 
-async def _iterate(semaphore: asyncio.Semaphore, session: aiohttp.ClientSession, request: Request):
+async def _iterate(semaphore: asyncio.Semaphore, session: aiohttp.ClientSession, request: Request) -> Response:
     async with semaphore:
         return await _fetch(session, request)
     
-async def _fetch(session: aiohttp.ClientSession, request: Request):
+async def _fetch(session: aiohttp.ClientSession, request: Request) -> Response:
 
     logger.info(f"NOW: {time.time()}")
     try:
@@ -102,7 +102,7 @@ def main(args: argparse.Namespace) -> None:
     logger.info(f"PUUID: {puuid}")
 
     # Retrieve an iterable of all matchIds we will use as input to retrieve match data in match data endpoint
-    matches: str = SummonerMatches(api_key=api_key, puuid=puuid, queue_types=args.queue_type).get_matches()
+    matches: list[str] = SummonerMatches(api_key=api_key, puuid=puuid, queue_types=args.queue_type).get_matches()
 
     # Query Match Data Endpoint and return JSON of all desired match data
     # Rate limit is n requests /s
