@@ -3,7 +3,7 @@ import aiohttp
 import argparse
 import time
 import logging
-logger = logging.getLogger(__name__)
+LOGGER: logging.Logger = logging.getLogger(__name__)
 
 from datetime import datetime
 from matches import SummonerMatches
@@ -38,7 +38,7 @@ class SummonerMatchData:
         self.api_key: str = api_key
 
     def run(self) -> "list[Response]":
-        logger.info(f"Starting async requests with rate limit {self.rate_limit}/s Total Requests to make: {len(self.matches)}")
+        LOGGER.info(f"Starting async requests with rate limit {self.rate_limit}/s Total Requests to make: {len(self.matches)}")
         responses: list[Response] = self.event_loop.run_until_complete(_make_requests(self.api_key, *self.matches, rate_limit=self.rate_limit))
         return responses
 
@@ -62,21 +62,21 @@ async def _iterate(semaphore: asyncio.Semaphore, session: aiohttp.ClientSession,
     
 async def _fetch(session: aiohttp.ClientSession, request: Request) -> Response:
 
-    logger.info(f"NOW: {time.time()}")
+    LOGGER.info(f"NOW: {time.time()}")
     try:
         async with session.request(request.method, request.url + request.payload) as response:
             content: dict = await response.json()
             response.raise_for_status()
-            await asyncio.sleep(1.020)
+            await asyncio.sleep(1.0)#20)
             return Response(request.url, response.status, payload=content, error=False)
     except aiohttp.ContentTypeError:
-        logger.info(f"Response Status: {response.status}.")
-        await asyncio.sleep(1.020)
+        LOGGER.info(f"Response Status: {response.status}.")
+        await asyncio.sleep(1.0)#20)
         return Response(request.url, response.status, error=True)
     except aiohttp.ClientResponseError:
         if response.status == 429:
             wait: int = int(response.headers['Retry-After'])
-            logger.info(f"Waiting {wait}")
+            LOGGER.info(f"Waiting {wait}")
             await asyncio.sleep(wait)
             return await _fetch(session, request)
 
@@ -87,7 +87,6 @@ def get_api_key(api_key_path: str) -> str:
     try:
         with open(api_key_path, 'r') as f:
             api_key: str = f.read()
-            f.close()
         return api_key
     except FileNotFoundError:
         raise FileNotFoundError("Text file with API key not provided correctly... Check your file path.")
@@ -99,7 +98,7 @@ def main(args: argparse.Namespace) -> None:
 
     # Retrieve unique summoner PUUID which we will use to access other endpoints.
     puuid: str = Summoner(api_key=api_key, summoner_name=args.summoner).get_puuid()
-    logger.info(f"PUUID: {puuid}")
+    LOGGER.info(f"PUUID: {puuid}")
 
     # Retrieve an iterable of all matchIds we will use as input to retrieve match data in match data endpoint
     matches: list[str] = SummonerMatches(api_key=api_key, puuid=puuid, queue_types=args.queue_type).get_matches()
@@ -109,8 +108,9 @@ def main(args: argparse.Namespace) -> None:
     time.sleep(125) # Back off 2 minutes before sending async requests to match data (since we already sent some requests as prerequisites)
     start_time: datetime.datetime = datetime.now()
     responses: list[Response] = SummonerMatchData(api_key=api_key, matches=matches, rate_limit=args.rate_limit).run()
-    logger.info(f"Requests took {datetime.now() - start_time}")
+    LOGGER.info(f"Requests took {datetime.now() - start_time}")
 
+    # Extract json payloads into list
     payloads: list[dict] = [resp.payload for resp in responses]
     
     # Process selected summoner data to MongoDb

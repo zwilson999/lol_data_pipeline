@@ -1,6 +1,6 @@
 import requests
 import logging
-logger = logging.getLogger(__name__)
+LOGGER: logging.Logger = logging.getLogger(__name__)
 class Summoner:
     def __init__(self, api_key: str, summoner_name: str) -> None:
         self.api_key: str = api_key
@@ -20,8 +20,10 @@ class Summoner:
             if resp.status_code == 200:
                 data: dict = resp.json()
                 puuid: str = data['puuid']
-                logger.info("Successfully authenticated.")
+                LOGGER.info("Successfully authenticated.")
+            else:
+                LOGGER.info(f"Could not authenticate. Response status: {resp.status_code}")
         except:
-            logger.error("Make sure your API Key is refreshed. You can request a permanent API Key at: https://developer.riotgames.com/app-type")
-            logger.error(f"Response code: {resp.status_code}")
+            LOGGER.error("Make sure your API Key is refreshed. You can request a permanent API Key at: https://developer.riotgames.com/app-type")
+            LOGGER.error(f"Response code: {resp.status_code}")
         return puuid     
