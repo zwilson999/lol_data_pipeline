@@ -4,52 +4,47 @@ import argparse
 import time
 import logging
 LOGGER: logging.Logger = logging.getLogger(__name__)
+logging.basicConfig(
+    level=logging.INFO,
+    handlers=[
+        logging.FileHandler("../../logs/logs.log"),
+        logging.StreamHandler()
+    ]
+)
 
+from typing import Optional
 from datetime import datetime
 from matches import SummonerMatches
 from summoner import Summoner
 from db import Mongo
-
-class Request:
-    """
-    Class wrapper for API Requests.
-    """
-    def __init__(self, method: str='get', url: str="https://americas.api.riotgames.com/lol/match/v5/matches/", payload: str=None) -> None:
-        self.method: str = method
-        self.url: str = url
-        self.payload: dict or str = payload
-
-class Response:
-    """
-    Class wrapper for API responses.
-    """
-    def __init__(self, url: str, status: int, payload: str, error: bool) -> None:
-        self.url: str = url
-        self.status: int = status
-        self.payload: dict = payload
-        self.error: bool = error
+from utils.utils import Request, Response
 
 class SummonerMatchData:
 
     def __init__(self, api_key: str, matches: "list[str]", rate_limit: int) -> None:
         self.event_loop: asyncio.AbstractEventLoop = asyncio.get_event_loop()
         self.rate_limit: int = rate_limit
-        self.matches: list[Request] = [Request(payload=m) for m in matches]
+        self.matches: list[str] = matches
         self.api_key: str = api_key
+
+    def prepare(self) -> "SummonerMatchData":
+        self.requests: list[Request] = [
+            Request(method='get', url=f"https://americas.api.riotgames.com/lol/match/v5/matches/{m}")
+            for m in self.matches
+        ]
+        return self
 
     def run(self) -> "list[Response]":
         LOGGER.info(f"Starting async requests with rate limit {self.rate_limit}/s Total Requests to make: {len(self.matches)}")
-        responses: list[Response] = self.event_loop.run_until_complete(_make_requests(self.api_key, *self.matches, rate_limit=self.rate_limit))
-        return responses
+        responses: list[Response] = self.event_loop.run_until_complete(_make_requests(self.api_key, *self.requests, rate_limit=self.rate_limit))
+        final_responses = [r for r in responses if r.status == 200]
+        return final_responses
 
-async def _make_requests(api_key: str, *requests: "list[Request]", rate_limit: int) -> "list[Response]":
+async def _make_requests(api_key: str, *requests, rate_limit: int) -> "list[Response]":
     semaphore: asyncio.Semaphore = asyncio.Semaphore(rate_limit)
     headers: dict = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko)     Chrome/86.0.4240.183 Safari/537.36",
-            "Accept-Language": "en-US,en;q=0.9",
-            "Accept-Charset": "application/x-www-form-urlencoded; charset=UTF-8",
-            "Origin": "https://developer.riotgames.com",
-            "X-Riot-Token": api_key # API key
+        "Accept": "application/json",
+        "X-Riot-Token": api_key # API key
     }
     async with aiohttp.ClientSession(headers=headers) as session:
         tasks: list[asyncio.Task] = [asyncio.create_task(_iterate(semaphore, session, request)) for request in requests]
@@ -59,26 +54,24 @@ async def _make_requests(api_key: str, *requests: "list[Request]", rate_limit: i
 async def _iterate(semaphore: asyncio.Semaphore, session: aiohttp.ClientSession, request: Request) -> Response:
     async with semaphore:
         return await _fetch(session, request)
-    
-async def _fetch(session: aiohttp.ClientSession, request: Request) -> Response:
 
-    LOGGER.info(f"NOW: {time.time()}")
-    try:
-        async with session.request(request.method, request.url + request.payload) as response:
+async def _fetch(session: aiohttp.ClientSession, request: Request) -> Response:
+    async with session.request(request.method, request.url) as response:
+        try:
             content: dict = await response.json()
             response.raise_for_status()
             await asyncio.sleep(1.0)#20)
             return Response(request.url, response.status, payload=content, error=False)
-    except aiohttp.ContentTypeError:
-        LOGGER.info(f"Response Status: {response.status}.")
-        await asyncio.sleep(1.0)#20)
-        return Response(request.url, response.status, error=True)
-    except aiohttp.ClientResponseError:
-        if response.status == 429:
-            wait: int = int(response.headers['Retry-After'])
-            LOGGER.info(f"Waiting {wait}")
-            await asyncio.sleep(wait)
-            return await _fetch(session, request)
+        except aiohttp.ContentTypeError:
+            LOGGER.info(f"Response Status: {response.status}.")
+            await asyncio.sleep(1.0)#20)
+            return Response(request.url, response.status, error=True)
+        except aiohttp.ClientResponseError:
+            if response.status == 429:
+                wait: int = int(response.headers['Retry-After'])
+                LOGGER.info(f"Waiting {wait}")
+                await asyncio.sleep(wait)
+                return await _fetch(session, request)
 
 def get_api_key(api_key_path: str) -> str:
     """
@@ -92,13 +85,12 @@ def get_api_key(api_key_path: str) -> str:
         raise FileNotFoundError("Text file with API key not provided correctly... Check your file path.")
 
 def main(args: argparse.Namespace) -> None:
-    
+
     # Retrieve non-expiring API Key from TXT file.
     api_key: str = get_api_key(args.api_key_path)
 
     # Retrieve unique summoner PUUID which we will use to access other endpoints.
     puuid: str = Summoner(api_key=api_key, summoner_name=args.summoner).get_puuid()
-    LOGGER.info(f"PUUID: {puuid}")
 
     # Retrieve an iterable of all matchIds we will use as input to retrieve match data in match data endpoint
     matches: list[str] = SummonerMatches(api_key=api_key, puuid=puuid, queue_types=args.queue_type).get_matches()
@@ -107,12 +99,14 @@ def main(args: argparse.Namespace) -> None:
     # Rate limit is n requests /s
     time.sleep(125) # Back off 2 minutes before sending async requests to match data (since we already sent some requests as prerequisites)
     start_time: datetime.datetime = datetime.now()
-    responses: list[Response] = SummonerMatchData(api_key=api_key, matches=matches, rate_limit=args.rate_limit).run()
+    responses: list[Response] = (SummonerMatchData(api_key=api_key, matches=matches, rate_limit=args.rate_limit)
+                                    .prepare()
+                                    .run())
     LOGGER.info(f"Requests took {datetime.now() - start_time}")
 
     # Extract json payloads into list
-    payloads: list[dict] = [resp.payload for resp in responses]
-    
+    payloads: list[Optional[dict]] = [resp.payload for resp in responses]
+
     # Process selected summoner data to MongoDb
     Mongo(args.db, args.collection, data=payloads, puuid=puuid).transform().load()
 

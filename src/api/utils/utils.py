@@ -1,5 +1,26 @@
 import logging
-logger = logging.getLogger(__name__)
+from typing import Optional
+from datetime import datetime
+LOGGER: logging.Logger = logging.getLogger(__name__)
+
+class Request:
+    """
+    Class wrapper for API Requests.
+    """
+    def __init__(self, method: str, url: str, payload: Optional[str]=None) -> None:
+        self.method: str = method
+        self.url: str = url
+        self.payload: Optional[str] = payload
+
+class Response:
+    """
+    Class wrapper for API responses.
+    """
+    def __init__(self, url: str, status: int, error: bool, payload: Optional[dict]=None) -> None:
+        self.url: str = url
+        self.status: int = status
+        self.error: bool = error
+        self.payload: Optional[dict] = payload
 
 def flatten_nested_json(d: dict) -> dict:
     """
@@ -45,7 +66,7 @@ def get_queue_id(queue_type: str) -> int:
     Queue Type Code Lookup:
         400: Draft 5v5
         430: Blind Pick 5v5
-        450: ARAM 
+        450: ARAM
     """
     match_type_map: dict = {
         "draft": 400,
@@ -59,9 +80,8 @@ def process_json(data: dict, participant: str) -> dict:
     This function will take the base match data JSON response and add metadata fields such as date fields in proper formats.
     It will also flatten necessary nested components of our resulting json from API
     """
-    
+
     def unix_timestamp_to_date(timestamp: float) -> str:
-        from datetime import datetime
         """
             args:
                 timestamp: integer timestamp in milliseconds
@@ -71,20 +91,20 @@ def process_json(data: dict, participant: str) -> dict:
         converted_date: str = datetime.fromtimestamp(timestamp / 1000.0).strftime("%Y-%m-%d")
         return converted_date
 
-    def find_participant_idx(body: dict, value: str) -> int:
+    def find_participant_idx(body: dict, value: str) -> Optional[int]:
         """
         args:
             body = list of dicts which we want to traverse to find the index of the matching dictionary that contains the desired puuid
             value = the puuid we want to search to find the proper dictionary
         """
-        idx: int = None
+        idx: Optional[int] = None
         if len(body['metadata']['participants']) == 0:
-            logger.info("Body has no elements to search")
+            LOGGER.info("Body has no elements to search")
             return
         # Search through participans to find the index of our summoner.
         for i in range(len(body['metadata']['participants'])):
             if body['metadata']['participants'][i] == value:
-                idx: int = i
+                idx: Optional[int] = i
         return idx
 
     # According to Match API Docs, if gameEndTimestamp is NOT in the response, treat game_duration as milliseconds, else treat it as seconds.
@@ -126,10 +146,9 @@ def process_json(data: dict, participant: str) -> dict:
             'gameVersion': data['info']['gameVersion'],
             'mapId': data['info']['mapId'],
         }
-
     # Update the final JSON output with participant data.
-    participant_idx: int = find_participant_idx(data, participant)
+    participant_idx: Optional[int] = find_participant_idx(data, participant)
     d.update(flatten_nested_json(data['info']['participants'][participant_idx]))
-    logger.info(f"Match Id: {d['matchId']} processed.")
+    LOGGER.info(f"Match Id: {d['matchId']} processed.")
 
     return d

@@ -1,7 +1,10 @@
 creds/api_key.txt
+logs/logs.log
 venv
 data
 **/__pycache__/
+
+*.swp
 
 /notebooks
 /src/practice/*
