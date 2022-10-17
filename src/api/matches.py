@@ -3,7 +3,6 @@ import time
 import logging
 from utils.utils import get_queue_id
 from typing import Callable
-
 LOGGER: logging.Logger = logging.getLogger(__name__)
 
 """
@@ -13,7 +12,6 @@ Thats a lot of matches!!!
 NUM_MATCHES_TO_SEARCH = 1000
 
 class SummonerMatches:
-
     def __init__(self, api_key: str, puuid: str, queue_types: "list[str]") -> None:
         self.api_key: str = api_key
         self.puuid: str = puuid
@@ -22,10 +20,6 @@ class SummonerMatches:
 
     def get_matches(self) -> "list[str]":
         headers: dict = {
-            #"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko)     Chrome/86.0.4240.183 Safari/537.36",
-            #"Accept-Language": "en-US,en;q=0.9",
-            #"Accept-Charset": "application/x-www-form-urlencoded; charset=UTF-8",
-            #"Origin": "https://developer.riotgames.com",
             "Accept": "application/json",
             "X-Riot-Token": self.api_key # API key
         }

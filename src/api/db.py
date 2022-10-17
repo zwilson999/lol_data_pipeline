@@ -13,9 +13,11 @@ class Mongo:
         self.uri: str = uri
 
     def transform(self) -> "Mongo":
-
         # Add metadata fields to our JSON array and flatten the json into a list of flat dictionaries for MongoDb consumption
-        self.transformed_data: list[Optional[dict]] = [process_json(d, self.puuid) for d in self.data]
+        self.transformed_data: list[Optional[dict]] = [
+            process_json(d, self.puuid)
+            for d in self.data
+        ]
         return self
 
     def load(self) -> None:

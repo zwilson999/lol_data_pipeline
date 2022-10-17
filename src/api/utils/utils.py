@@ -81,17 +81,16 @@ def process_json(data: dict, participant: str) -> dict:
     It will also flatten necessary nested components of our resulting json from API
     """
 
-    def unix_timestamp_to_date(timestamp: float) -> str:
+    def _unix_timestamp_to_date(timestamp: float) -> str:
         """
             args:
                 timestamp: integer timestamp in milliseconds
             returns:
                 converted timestamp in MS to YYY-MM-DD string date format
         """
-        converted_date: str = datetime.fromtimestamp(timestamp / 1000.0).strftime("%Y-%m-%d")
-        return converted_date
+        return datetime.fromtimestamp(timestamp / 1000.0).strftime("%Y-%m-%d")
 
-    def find_participant_idx(body: dict, value: str) -> Optional[int]:
+    def _find_participant_idx(body: dict, value: str) -> Optional[int]:
         """
         args:
             body = list of dicts which we want to traverse to find the index of the matching dictionary that contains the desired puuid
@@ -113,13 +112,13 @@ def process_json(data: dict, participant: str) -> dict:
         d: dict = {
             'matchId': data['metadata']['matchId'],
             'gameCreation': data['info']['gameCreation'], # When the game was created in unix timestamp milliseconds
-            'gameCreationDate': unix_timestamp_to_date(data['info']['gameCreation']),
+            'gameCreationDate': _unix_timestamp_to_date(data['info']['gameCreation']),
             'gameDuration': data['info']['gameDuration'],
             'gameDurationUnits': 's',
             'gameStartTimestamp': data['info']['gameStartTimestamp'],
-            'gameStartTimestampDate': unix_timestamp_to_date(data['info']['gameStartTimestamp']),
+            'gameStartTimestampDate': _unix_timestamp_to_date(data['info']['gameStartTimestamp']),
             'gameEndTimestamp': data['info']['gameEndTimestamp'],
-            'gameEndTimestampDate': unix_timestamp_to_date(data['info']['gameEndTimestamp']),
+            'gameEndTimestampDate': _unix_timestamp_to_date(data['info']['gameEndTimestamp']),
             'gameId': data['info']['gameId'],
             'gameMode': data['info']['gameMode'],
             'gameName': data['info']['gameName'],
@@ -132,11 +131,11 @@ def process_json(data: dict, participant: str) -> dict:
         d: dict = {
             'matchId': data['metadata']['matchId'],
             'gameCreation': data['info']['gameCreation'], # When the game was created in unix timestamp milliseconds
-            'gameCreationDate': unix_timestamp_to_date(data['info']['gameCreation']),
+            'gameCreationDate': _unix_timestamp_to_date(data['info']['gameCreation']),
             'gameDuration': data['info']['gameDuration'],
             'gameDurationUnits': 'ms',
             'gameStartTimestamp': data['info']['gameStartTimestamp'],
-            'gameStartTimestampDate': unix_timestamp_to_date(data['info']['gameStartTimestamp']),
+            'gameStartTimestampDate': _unix_timestamp_to_date(data['info']['gameStartTimestamp']),
             'gameEndTimestamp': None,
             'gameEndTimestampDate': None,
             'gameId': data['info']['gameId'],
@@ -147,7 +146,7 @@ def process_json(data: dict, participant: str) -> dict:
             'mapId': data['info']['mapId'],
         }
     # Update the final JSON output with participant data.
-    participant_idx: Optional[int] = find_participant_idx(data, participant)
+    participant_idx: Optional[int] = _find_participant_idx(data, participant)
     d.update(flatten_nested_json(data['info']['participants'][participant_idx]))
     LOGGER.info(f"Match Id: {d['matchId']} processed.")
 
